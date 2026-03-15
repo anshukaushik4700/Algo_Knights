@@ -1,0 +1,75 @@
+2026-03-15 15:15:33,462 | INFO | DataManager initialized with rolling buffer
+2026-03-15 15:15:33,463 | INFO | Paper Trading Engine started | Balance: 100000
+2026-03-15 15:15:33,466 | INFO | ================================================================================
+2026-03-15 15:15:33,468 | INFO |    Mode: PAPER TRADING
+2026-03-15 15:15:33,469 | INFO |    Max Trades/Day: 4
+2026-03-15 15:15:33,469 | INFO |    Session: 09:30 - 15:30 IST
+2026-03-15 15:15:33,469 | INFO | ================================================================================
+2026-03-15 15:20:38,919 | WARNING | ⚠️  Dhan credentials not fully configured. Paper trading mode active.
+2026-03-15 15:20:38,931 | INFO | DataManager initialized with rolling buffer
+2026-03-15 15:20:38,931 | INFO | Paper Trading Engine started | Balance: 100000
+2026-03-15 15:20:38,931 | INFO | 🔌 DhanBroker initialized (ready for API integration)
+2026-03-15 15:20:38,932 | INFO | ================================================================================
+2026-03-15 15:20:38,932 | INFO | 🚀 NIFTY ATM BOT INITIALIZED
+2026-03-15 15:20:38,932 | INFO |    Mode: PAPER TRADING
+2026-03-15 15:20:38,932 | INFO |    Max Trades/Day: 4
+2026-03-15 15:20:38,932 | INFO |    Session: 09:30 - 15:30 IST
+2026-03-15 15:20:38,934 | INFO | ================================================================================
+2026-03-15 15:20:40,564 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:40,564 | INFO | 📅 New trading day: 2026-01-30
+2026-03-15 15:20:40,901 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:40,901 | INFO | 📅 New trading day: 2026-02-03
+2026-03-15 15:20:41,357 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:41,359 | INFO | 📅 New trading day: 2026-02-04
+2026-03-15 15:20:41,845 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:41,845 | INFO | 📅 New trading day: 2026-02-05
+2026-03-15 15:20:42,444 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:42,444 | INFO | 📅 New trading day: 2026-02-06
+2026-03-15 15:20:42,876 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:42,877 | INFO | 📅 New trading day: 2026-02-09
+2026-03-15 15:20:43,424 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:43,424 | INFO | 📅 New trading day: 2026-02-10
+2026-03-15 15:20:43,932 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:43,933 | INFO | 📅 New trading day: 2026-02-11
+2026-03-15 15:20:44,488 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:44,489 | INFO | 📅 New trading day: 2026-02-12
+2026-03-15 15:20:44,923 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:44,925 | INFO | 📅 New trading day: 2026-02-13
+2026-03-15 15:20:45,504 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:45,504 | INFO | 📅 New trading day: 2026-02-16
+2026-03-15 15:20:46,352 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:46,353 | INFO | 📅 New trading day: 2026-02-17
+2026-03-15 15:20:47,032 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:47,034 | INFO | 📅 New trading day: 2026-02-18
+2026-03-15 15:20:47,470 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:47,471 | INFO | 📅 New trading day: 2026-02-19
+2026-03-15 15:20:48,015 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:48,016 | INFO | 📅 New trading day: 2026-02-20
+2026-03-15 15:20:48,425 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:48,426 | INFO | 📅 New trading day: 2026-02-23
+2026-03-15 15:20:48,805 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:48,805 | INFO | 📅 New trading day: 2026-02-24
+2026-03-15 15:20:49,236 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:49,236 | INFO | 📅 New trading day: 2026-02-25
+2026-03-15 15:20:49,738 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:49,739 | INFO | 📅 New trading day: 2026-02-26
+2026-03-15 15:20:50,127 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:50,127 | INFO | 📅 New trading day: 2026-02-27
+2026-03-15 15:20:50,480 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:50,482 | INFO | 📅 New trading day: 2026-03-02
+2026-03-15 15:20:50,821 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:50,822 | INFO | 📅 New trading day: 2026-03-04
+2026-03-15 15:20:51,227 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:51,228 | INFO | 📅 New trading day: 2026-03-05
+2026-03-15 15:20:51,636 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:51,638 | INFO | 📅 New trading day: 2026-03-06
+2026-03-15 15:20:52,030 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:52,030 | INFO | 📅 New trading day: 2026-03-09
+2026-03-15 15:20:52,425 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:52,426 | INFO | 📅 New trading day: 2026-03-10
+2026-03-15 15:20:52,798 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:52,799 | INFO | 📅 New trading day: 2026-03-11
+2026-03-15 15:20:53,190 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:53,190 | INFO | 📅 New trading day: 2026-03-12
+2026-03-15 15:20:53,588 | INFO | 📅 Daily counters reset
+2026-03-15 15:20:53,589 | INFO | 📅 New trading day: 2026-03-13
