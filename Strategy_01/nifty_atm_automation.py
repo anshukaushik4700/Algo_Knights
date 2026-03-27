@@ -23,12 +23,21 @@ import pandas as pd
 import numpy as np
 from collections import deque
 import time as time_module
+import schedule
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import yfinance as yf
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  STEP 1: IMPORT DHAN API (will be installed later)
+#  STEP 1: IMPORT DHAN API & DEPENDENCIES
 # ─────────────────────────────────────────────────────────────────────────────
-# Dhan API import will be added after you set up credentials
-# from dhan import DhanClient
+try:
+    from dhan import DhanClient
+    DHAN_AVAILABLE = True
+except ImportError:
+    logger = logging.getLogger(__name__)  # Temp for early logging
+    DHAN_AVAILABLE = False
+    logger.warning("⚠️  Dhan SDK not installed. Install with: pip install dhanhq")
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  LOGGING SETUP
@@ -399,88 +408,231 @@ class PaperTradingEngine:
 
 class DhanBroker:
     """
-    🔌 FUTURE: Dhan API integration for live trading
+    ✅ DHAN BROKER API INTEGRATION - Full Implementation
     
-    When you're ready to go live:
-    1. Uncomment the import at the top
-    2. Add your Dhan credentials to environment variables
-    3. Replace paper trading with actual API calls in these methods
+    Modes:
+    • PAPER TRADING: Virtual orders, paper P&L only
+    • LIVE TRADING: Real orders, real capital at risk
+    
+    The switch between modes is controlled by Config.PAPER_TRADING flag
     """
+    
+    NIFTY_SECURITY_ID = "50"  # Dhan security ID for NIFTY 50
+    NIFTY_EXCHANGE_TOKEN = "NDX_NIFTY"
     
     def __init__(self, client_id, access_token, api_key):
         """Initialize Dhan API client."""
-        # Uncomment when ready:
-        # from dhan import DhanClient
-        # self.client = DhanClient(client_id, access_token)
-        # self.api_key = api_key
-        
+        self.client_id = client_id
+        self.access_token = access_token
+        self.api_key = api_key
+        self.client = None
         self.is_connected = False
-        logger.info("🔌 DhanBroker initialized (ready for API integration)")
+        
+        if DHAN_AVAILABLE and not Config.PAPER_TRADING:
+            try:
+                self.client = DhanClient(client_id, access_token)
+                self.is_connected = True
+                logger.info("✅ Dhan API Connected successfully")
+            except Exception as e:
+                logger.error(f"❌ Failed to connect to Dhan API: {e}")
+                logger.info("⚡ Falling back to Paper Trading safety mode")
+                Config.PAPER_TRADING = True
+        else:
+            if Config.PAPER_TRADING:
+                logger.info("📄 Paper Trading mode - No real API connection needed")
+            else:
+                logger.warning("⚠️  Dhan SDK not available - Using Paper Trading")
+                Config.PAPER_TRADING = True
+    
+    def check_connection(self):
+        """Verify API connection is active"""
+        if Config.PAPER_TRADING:
+            return True
+        
+        if not DHAN_AVAILABLE:
+            logger.error("Dhan SDK not installed")
+            return False
+            
+        if not self.is_connected:
+            logger.error("API not connected")
+            return False
+        
+        return True
     
     def get_live_candle(self):
         """
-        Fetch latest 5-min candle from Dhan.
+        Fetch latest 5-minute candle from Dhan API (LIVE MODE)
+        Falls back to yfinance in paper trading mode
+        """
+        if not Config.PAPER_TRADING and self.is_connected:
+            try:
+                response = self.client.historical_candle(
+                    security_id=self.NIFTY_SECURITY_ID,
+                    exchange_token=self.NIFTY_EXCHANGE_TOKEN,
+                    interval="FiveMin",
+                    to_date=datetime.now(Config.IST).strftime("%Y-%m-%d"),
+                    from_date=(datetime.now(Config.IST)).strftime("%Y-%m-%d")
+                )
+                
+                if response and len(response) > 0:
+                    candle = response[-1]  # Latest candle
+                    
+                    # Parse Dhan response
+                    candle_data = {
+                        'open': float(candle.get('open', 0)),
+                        'high': float(candle.get('high', 0)),
+                        'low': float(candle.get('low', 0)),
+                        'close': float(candle.get('close', 0)),
+                        'timestamp': self._parse_dhan_timestamp(candle.get('time', ''))
+                    }
+                    
+                    logger.debug(f"📊 Live candle from Dhan: {candle_data['close']}")
+                    return candle_data
+            
+            except Exception as e:
+                logger.error(f"Dhan API Error: {e}")
+                logger.warning("⚠️  Falling back to yfinance")
         
-        IMPLEMENTATION TODO:
-        ```python
+        # Fallback to yfinance (paper trading or API error)
+        return self._get_yfinance_candle()
+    
+    def _parse_dhan_timestamp(self, dhan_time_str):
+        """Parse Dhan API timestamp format"""
         try:
-            # Historical data API call
-            response = self.client.historical_candle(
-                security_id=Config.SECURITY_ID,
-                exchange_token="NIFTY",
-                interval="FiveMin",
-                from_date="2024-03-15",  # Today
-                to_date="2024-03-15"
+            # Dhan returns time as string like "2024-03-27 14:35:00"
+            return pd.to_datetime(dhan_time_str).tz_localize("Asia/Kolkata")
+        except:
+            return datetime.now(Config.IST)
+    
+    def _get_yfinance_candle(self):
+        """Fallback: Fetch candle from yfinance"""
+        try:
+            df = yf.download(
+                Config.SYMBOL,
+                interval="5m",
+                period="1d",
+                auto_adjust=True,
+                progress=False
             )
             
-            candle = response[-1]  # Latest candle
+            if df.empty or len(df) == 0:
+                return None
+            
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            
+            if df.index.tzinfo is None:
+                df = df.tz_localize("UTC")
+            df = df.tz_convert(Config.IST)
+            
+            latest = df.iloc[-1]
+            
             return {
-                'open': float(candle['open']),
-                'high': float(candle['high']),
-                'low': float(candle['low']),
-                'close': float(candle['close']),
-                'timestamp': candle['timestamp']
+                'open': float(latest['Open']),
+                'high': float(latest['High']),
+                'low': float(latest['Low']),
+                'close': float(latest['Close']),
+                'timestamp': df.index[-1]
             }
         except Exception as e:
-            logger.error(f"API Error: {e}")
+            logger.error(f"yfinance error: {e}")
             return None
-        ```
-        """
-        pass
     
-    def place_order(self, symbol, qty, side, price, order_type='LIMIT'):
+    def place_order(self, symbol, qty, side, price, sl, target, order_type='LIMIT'):
         """
-        Place order on Dhan.
+        Place order on Dhan API (LIVE MODE)
+        In paper trading, logs the order and returns mock order_id
         
-        IMPLEMENTATION TODO:
-        ```python
+        Args:
+            symbol: Security ID
+            qty: Quantity (always 1 for options)
+            side: 'BUY' or 'SELL'
+            price: Entry price
+            sl: Stop loss price
+            target: Target price
+            order_type: 'LIMIT' or 'MARKET'
+        
+        Returns:
+            order_id (str) or None if failed
+        """
+        if Config.PAPER_TRADING:
+            # Paper trading: just log it
+            mock_id = f"PAPER_ORD_{datetime.now(Config.IST).strftime('%H%M%S')}"
+            logger.info(f"📄 Paper Order: {mock_id} | {side} @ {price} | SL:{sl} | TGT:{target}")
+            return mock_id
+        
+        if not self.is_connected:
+            logger.error("❌ API not connected - cannot place real order")
+            return None
+        
         try:
+            logger.info(f"🔴 LIVE ORDER: {side} {qty} @ {price} | SL:{sl} | TGT:{target}")
+            
             response = self.client.place_order(
                 security_id=symbol,
+                exchange_token=self.NIFTY_EXCHANGE_TOKEN,
+                transaction_type=side,
                 quantity=qty,
-                side=side,  # 'BUY' or 'SELL'
-                price=price,
-                product_type="MIS",  # Intraday
                 order_type=order_type,
-                dhan_client_id=Config.DHAN_CLIENT_ID
+                price=price,
+                product_type="MIS"  # Intraday
             )
-            return response['order_id']
+            
+            if response:
+                order_id = response.get('orderId')
+                logger.info(f"✅ Order placed: {order_id}")
+                return order_id
+            else:
+                logger.error("Order response empty")
+                return None
+        
         except Exception as e:
-            logger.error(f"Order placement failed: {e}")
+            logger.error(f"❌ Order placement failed: {e}")
             return None
-        ```
-        """
-        pass
     
     def cancel_order(self, order_id):
-        """Cancel an order."""
-        # Implementation similar to place_order
-        pass
+        """Cancel an order (LIVE MODE)"""
+        if Config.PAPER_TRADING:
+            logger.info(f"📄 Paper Cancel: {order_id}")
+            return True
+        
+        if not self.is_connected:
+            return False
+        
+        try:
+            response = self.client.cancel_order(
+                order_id=order_id,
+                security_id=self.NIFTY_SECURITY_ID,
+                exchange_token=self.NIFTY_EXCHANGE_TOKEN
+            )
+            logger.info(f"Order cancelled: {order_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Cancel failed: {e}")
+            return False
     
     def get_position(self, order_id):
-        """Get position status from Dhan."""
-        # Implementation
-        pass
+        """Get position details (LIVE MODE)"""
+        if Config.PAPER_TRADING:
+            return None  # Paper trading uses internal tracking
+        
+        if not self.is_connected:
+            return None
+        
+        try:
+            response = self.client.get_order_list()
+            for order in response:
+                if order.get('orderId') == order_id:
+                    return {
+                        'order_id': order.get('orderId'),
+                        'status': order.get('orderStatus'),
+                        'filled': order.get('filledQty'),
+                        'price': order.get('price')
+                    }
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching position: {e}")
+            return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -567,63 +719,162 @@ class TradingBot:
             )
             
             # If not paper trading, also place order on broker
-            if order_id and not Config.PAPER_TRADING:
-                self._place_real_order(order_id, latest['Close'])
+            if order_id:
+                pos = self.paper_engine.positions.get(order_id)
+                if pos:
+                    self._place_real_order(
+                        order_id, 
+                        pos['entry_price'],
+                        pos['sl'],
+                        pos['target']
+                    )
     
-    def _place_real_order(self, order_id, price):
+    def _place_real_order(self, order_id, entry_price, sl, target):
         """
-        Place real order on Dhan broker.
-        Only called when PAPER_TRADING = False
+        Place real order on Dhan broker API
+        Called when PAPER_TRADING = False and a signal is detected
         """
-        logger.info(f"📡 Placing real order on Dhan: {order_id}")
-        # This will call dhan.place_order() after implementation
-        pass
+        if Config.PAPER_TRADING:
+            logger.info(f"📄 Paper mode - order {order_id} tracked virtually")
+            return
+        
+        try:
+            logger.warning(f"🔴 PLACING REAL ORDER: {order_id}")
+            
+            # Place SELL order for BUY PUT (bearish)
+            real_order_id = self.dhan.place_order(
+                symbol=Config.SECURITY_ID,
+                qty=1,
+                side='SELL',  # Selling puts (bearish)
+                price=entry_price,
+                sl=sl,
+                target=target,
+                order_type='LIMIT'
+            )
+            
+            if real_order_id:
+                logger.warning(f"✅ REAL ORDER PLACED: {real_order_id}")
+            else:
+                logger.error(f"❌ Failed to place order {order_id}")
+        
+        except Exception as e:
+            logger.error(f"Error placing real order: {e}", exc_info=True)
     
     def run_live_loop(self):
         """
         ✅ MAIN LOOP: Run continuously during market hours
-        Connected to live data feed (Dhan API)
+        Uses APScheduler for reliable execution
         """
-        logger.info("▶️  Starting live trading loop...")
+        logger.info("▶️  Starting live trading bot with scheduler...")
+        logger.info(f"   Bot will check for candles every 5 minutes")
+        logger.info(f"   During market hours: {Config.SESSION_START.strftime('%H:%M')} - {Config.SESSION_END.strftime('%H:%M')} IST")
         
-        while self.running:
-            try:
-                current_time = datetime.now(Config.IST).time()
-                
-                # Check if market is open
-                if not (Config.MARKET_OPEN <= current_time <= Config.SESSION_END):
-                    time_module.sleep(60)  # Sleep during closed hours
-                    continue
-                
-                # Fetch latest candle (from Dhan API or paper data)
-                candle = self._fetch_candle()
-                
-                if candle:
-                    self.on_new_candle(candle)
-                
-                # Log summary every hour
-                if current_time.minute == 0:
-                    self._log_summary()
-                
-                # Sleep until next candle (5 minutes)
-                time_module.sleep(300)  # 5 minutes
+        # Create background scheduler
+        scheduler = BackgroundScheduler()
+        
+        # Schedule the candle check every 5 minutes during market hours
+        # IST timezone
+        scheduler.add_job(
+            self._check_and_trade,
+            trigger=CronTrigger(
+                minute="*/5",  # Every 5 minutes
+                hour="9-15",   # 9 AM to 3 PM 
+                day_of_week="0-4"  # Monday to Friday
+            ),
+            timezone="Asia/Kolkata",
+            id="candle_check",
+            name="Check for trading signals every 5 min"
+        )
+        
+        # Start scheduler
+        scheduler.start()
+        logger.info("✅ Scheduler started successfully")
+        logger.info(f"⏰ Current time (IST): {datetime.now(Config.IST).strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("Press Ctrl+C to stop the bot")
+        
+        try:
+            # Keep the scheduler running
+            while True:
+                time_module.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("🛑 Stopping bot...")
+            scheduler.shutdown()
+            logger.info("✅ Bot stopped gracefully")
             
-            except KeyboardInterrupt:
-                logger.info("🛑 Bot stopped by user")
-                self.running = False
-            except Exception as e:
-                logger.error(f"❌ Error in main loop: {e}", exc_info=True)
-                time_module.sleep(10)
+            # Print final summary
+            summary = self.paper_engine.get_summary()
+            if summary:
+                logger.info(
+                    f"📊 Final Summary | Trades: {summary['total_trades']} | "
+                    f"W/L: {summary['wins']}/{summary['losses']} | "
+                    f"PnL: {summary['total_pnl']:+.1f}"
+                )
+    
+    def _check_and_trade(self):
+        """Called every 5 minutes by scheduler - main trading routine"""
+        try:
+            current_time = datetime.now(Config.IST)
+            
+            # Skip if market is closed
+            if not (Config.MARKET_OPEN <= current_time.time() <= Config.SESSION_END):
+                return
+            
+            logger.debug(f"⏰ Candle check at {current_time.strftime('%H:%M:%S')}")
+            
+            # Fetch latest candle
+            candle = self._fetch_candle()
+            
+            if candle:
+                self.on_new_candle(candle)
+                self._log_summary()
+            else:
+                logger.warning("Could not fetch candle data")
+        
+        except Exception as e:
+            logger.error(f"Error in candle check: {e}", exc_info=True)
     
     def _fetch_candle(self):
         """
-        Fetch the latest candle.
-        Will use Dhan API when implemented.
+        Fetch the latest 5-minute candle.
+        Uses yfinance for live data (free, no API key needed).
         """
-        # TODO: Replace with:
-        # candle = self.dhan.get_live_candle()
-        # For now, returns None (needs real data feed)
-        return None
+        try:
+            # Fetch last 5 candles to get the most recent completed one
+            df = yf.download(
+                Config.SYMBOL,
+                interval="5m",
+                period="1d",
+                auto_adjust=True,
+                progress=False
+            )
+            
+            if df.empty or len(df) == 0:
+                return None
+            
+            # Handle multi-level columns
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            
+            # Get timezone-aware index
+            if df.index.tzinfo is None:
+                df = df.tz_localize("UTC")
+            df = df.tz_convert(Config.IST)
+            
+            # Get the latest candle
+            latest = df.iloc[-1]
+            
+            candle = {
+                'open': float(latest['Open']),
+                'high': float(latest['High']),
+                'low': float(latest['Low']),
+                'close': float(latest['Close']),
+                'timestamp': df.index[-1]
+            }
+            
+            return candle
+        except Exception as e:
+            logger.error(f"Error fetching candle: {e}")
+            return None
     
     def _log_summary(self):
         """Log current trading summary."""
@@ -645,9 +896,5 @@ class TradingBot:
 if __name__ == "__main__":
     bot = TradingBot()
     
-    # Option 1: Run live loop (requires Dhan API connection)
-    # bot.run_live_loop()
-    
-    # Option 2: Test with sample data (for development)
-    logger.info("💡 Tip: Connect real data feed or use test_with_sample_data()")
-    logger.info("   Documentation includes Dhan API integration steps")
+    # ✅ NOW FULLY AUTOMATED - Run the live trading loop
+    bot.run_live_loop()

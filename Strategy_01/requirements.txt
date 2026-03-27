@@ -1,0 +1,11 @@
+pandas>=1.3.0
+numpy>=1.21.0
+yfinance>=0.2.0
+pytz>=2022.1
+apscheduler>=3.10.0
+schedule>=1.1.9
+python-dotenv>=0.19.0
+
+# Dhan API (optional - install only when you have API key)
+# Uncomment this line after buying Dhan API key:
+# dhanhq>=1.0.0

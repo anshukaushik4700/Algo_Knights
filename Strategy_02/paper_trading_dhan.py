@@ -30,7 +30,22 @@ import schedule
 
 warnings.filterwarnings("ignore")
 
-
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    
+    # Try to load .env from Strategy_02 folder first
+    strategy_env = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(strategy_env):
+        load_dotenv(strategy_env)
+    else:
+        # Fallback: Load from root folder
+        root_env = os.path.join(os.path.dirname(__file__), "..", ".env")
+        if os.path.exists(root_env):
+            load_dotenv(root_env)
+except ImportError:
+    print("⚠️  python-dotenv not installed. Install with: pip install python-dotenv")
+    print("   Or manually set DHAN_CLIENT_ID and DHAN_ACCESS_TOKEN environment variables")
 
 # ── Try to import dhanhq ────────────────────────────────────────────────
 try:
@@ -43,15 +58,19 @@ except ImportError:
 # ██████████████████████  CONFIGURATION  ████████████████████████████████████
 # ===========================================================================
 
-# ── 🔑 Dhan Credentials ─────────────────────────────────────────────────────
-# Get these from: https://login.dhan.co/ → My Profile → Access Token
-# OPTION 1 — hardcode directly (easy local use):
-DHAN_CLIENT_ID    = "YOUR_CLIENT_ID_HERE"      # ← paste your Client ID here
-DHAN_ACCESS_TOKEN = "YOUR_ACCESS_TOKEN_HERE"   # ← paste your Access Token here
+# ── 🔑 Dhan Credentials (from environment variables or .env file) ────────────
+DHAN_CLIENT_ID    = os.getenv("DHAN_CLIENT_ID", "")      
+DHAN_ACCESS_TOKEN = os.getenv("DHAN_ACCESS_TOKEN", "")
 
-# OPTION 2 — use environment variables (safer, no credentials in code):
-# DHAN_CLIENT_ID    = os.getenv("DHAN_CLIENT_ID")
-# DHAN_ACCESS_TOKEN = os.getenv("DHAN_ACCESS_TOKEN")
+# Validate credentials are set
+if not DHAN_CLIENT_ID or not DHAN_ACCESS_TOKEN:
+    raise ValueError(
+        "❌ Dhan credentials not configured!\n\n"
+        "Set environment variables or create .env file:\n"
+        "   DHAN_CLIENT_ID=your_client_id\n"
+        "   DHAN_ACCESS_TOKEN=your_access_token\n\n"
+        "Get these from: https://login.dhan.co/ → My Profile → Access Token"
+    )
 
 # ── Strategy Parameters (SAME as new_algo.ipynb) ────────────────────────────
 EMA_FAST         = 20
