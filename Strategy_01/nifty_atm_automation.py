@@ -94,7 +94,8 @@ class Config:
     # ── Risk Management ──────────────────────────────────
     SL_BUFFER       = 1.0              # Points above EMA20 for SL
     RR_RATIO        = 2.5              # Risk:Reward ratio
-    TRAIL_TRIGGER_R = 1.5              # Activate trailing after 1.5R
+    TRAIL_TRIGGER_R = 1.5              # Activate trailing SL after 1.5R ✨ ENHANCED
+    TRAIL_SL_MODE   = 'BREAKEVEN'      # 'BREAKEVEN' = cost | 'EMA20' = follow EMA20
     MAX_EMA_DISTANCE= 10.0             # Max points below EMA20 at entry
     
     # ── DHAN API CREDENTIALS ──────────────────────────────
@@ -300,18 +301,26 @@ class PaperTradingEngine:
             if pos['status'] != 'ACTIVE':
                 continue
             
-            # Activate trailing after 1.5R
+            # Activate trailing SL after 1.5R
             if not pos['trail_active']:
                 profit = pos['entry_price'] - current_price
                 if profit >= Config.TRAIL_TRIGGER_R * pos['risk']:
                     pos['trail_active'] = True
-                    logger.info(f"🔔 {order_id}: Trailing SL activated")
+                    # Move SL to BREAKEVEN (cost) when 1.5R is reached ✨
+                    pos['trail_sl'] = pos['entry_price']
+                    logger.info(f"🔔 {order_id}: Trailing SL ACTIVATED | Moved to BREAKEVEN: {pos['entry_price']:.2f}")
             
-            # Update trailing SL (only tighten)
+            # Update trailing SL - Only tighten (move closer to breakeven)
             if pos['trail_active']:
-                new_trail = current_ema20
-                if new_trail < pos['trail_sl']:
-                    pos['trail_sl'] = new_trail
+                # Option 1: Trail to EMA20 (if it's closer than current SL)
+                new_trail_ema = current_ema20
+                # Option 2: Keep only breakeven (stricter)
+                # new_trail_ema = pos['entry_price']
+                
+                # Only tighten SL, never loosen it
+                if new_trail_ema < pos['trail_sl']:
+                    pos['trail_sl'] = new_trail_ema
+                    logger.debug(f"🔔 {order_id}: Trail SL tightened to {new_trail_ema:.2f}")
             
             sl_price = pos['trail_sl'] if pos['trail_active'] else pos['sl']
             
